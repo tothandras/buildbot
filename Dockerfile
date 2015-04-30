@@ -21,7 +21,7 @@ run buildslave create-slave slave localhost:9989 example-slave pass
 # Setup running docker container buildbot process
 # Make host port 8020 match container port 8020
 expose 8020
-cmd twistd --nodaemon --no_save -y buildbot.tac
+cmd buildbot start --nodaemon master
 
 # build: docker build -t buildbot .
-# run: docker run -p 80:8020 buildbot
+# run: docker run -d -p 80:8020 buildbot
