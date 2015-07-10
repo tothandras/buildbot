@@ -1,0 +1,7 @@
+section.card(layout-md="column", layout-gt-md="row")
+    md-button(ng-click="demo.close()") CLOSE All
+    md-button(ng-click="demo.close1()") CLOSE 1
+    md-button(ng-click="demo.close2()") CLOSE 2
+    ul
+        //-  li(ng-repeat='buildrequest in demo.buildrequests track by buildrequest.id') {{buildrequest}}
+        li(ng-repeat='builder in demo.builders track by builder.id') {{builder}}
