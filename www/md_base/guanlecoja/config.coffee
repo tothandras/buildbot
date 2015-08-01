@@ -75,6 +75,12 @@ config =
             'reconnectingWebsocket':
                 version: 'master'
                 files: ['reconnecting-websocket.js']
+            tabex:
+                version: '*'
+                files: 'dist/tabex.js'
+            dexie:
+                version: '*'
+                files: 'dist/latest/Dexie.js'
 
         testdeps:
             'angular-mocks':
