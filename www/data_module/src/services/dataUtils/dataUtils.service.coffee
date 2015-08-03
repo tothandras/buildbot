@@ -1,25 +1,20 @@
 class DataUtils extends Service
 
     # capitalize first word
-    capitalize: (w) ->
-        w[0].toUpperCase() + w[1..-1].toLowerCase()
+    capitalize: (string) ->
+        string[0].toUpperCase() + string[1..].toLowerCase()
 
     # returns the type of the endpoint
     type: (arg) ->
-        # if the argument count is even, the last argument is an id
         a = @copyOrSplit(arg)
         a = a.filter (e) -> e isnt '*'
-        # is it even, then throw the id
+        # if the argument count is even, the last argument is an id
         if a.length % 2 is 0 then a.pop()
         a.pop()
 
     # singularize the type name
     singularType: (arg) ->
         @type(arg).replace(/s$/, '')
-
-    # capitalized type name
-    className: (arg) ->
-        @capitalize(@singularType(arg))
 
     socketPath: (arg) ->
         a = @copyOrSplit(arg)
@@ -37,28 +32,21 @@ class DataUtils extends Service
     endpointPath: (arg) ->
         # if the argument count is even, the last argument is an id
         a = @copyOrSplit(arg)
+        a = a.filter (e) -> e isnt '*'
         # is it even?
         if a.length % 2 is 0 then a.pop()
         a.join('/')
 
-    id: (arg) ->
-        a = @copyOrSplit(arg)
-        # if the argument count is even, the last argument is an id
-        if a.length % 2 is 0
-            stringId = a.pop()
-            return @numberOrStringId(stringId)
-        return null
-
     copyOrSplit: (arrayOrString) ->
         if angular.isArray(arrayOrString)
             # return a copy
-            arrayOrString.slice()
+            arrayOrString[..]
         else if angular.isString(arrayOrString)
             # split the string to get an array
             arrayOrString.split('/')
         else
             throw new TypeError("Parameter 'arrayOrString' must be a array or a string, not #{typeof arrayOrString}")
 
-    unWrap: (data, restPath) ->
-        type = @type(restPath)
+    unWrap: (data, path) ->
+        type = @type(path)
         data[type]
