@@ -1,11 +1,7 @@
-class Ronron extends Run
-    constructor: (dataService) ->
-        # dataService.get('builders/1/builds/1', {builderid: 1}).then (a) -> console.log a
-
 class DBStores extends Constant
     constructor: ->
         return {
-            paths: '&[path+query],path,query,tracked,lastActive'
+            paths: '&[path+query],path,query,lastActive'
         }
 
 class IndexedDB extends Service
@@ -20,7 +16,7 @@ class IndexedDB extends Service
                 # global db error handler
                 @db.on 'error', (e) -> $log.error(e)
 
-                @db.open()
+                @db.open().catch (e) -> $log.error(e)
 
             get: (url, query = {}) ->
                 [tableName, q, id] = @processUrl(url)
@@ -33,129 +29,102 @@ class IndexedDB extends Service
                     # convert promise to $q implementation
                     if id? then return $q.resolve table.get(id)
 
-                    # TODO note: this takes almost a second
-                    promise = table.toArray()
+                    $q (resolve, reject) =>
+                        # TODO note: this takes almost a second
+                        table.toArray().then (array) =>
 
-                    # 1. filtering
-                    filters = []
-                    for fieldAndOperator, value of query
-                        if ['field', 'limit', 'offset', 'order'].indexOf(fieldAndOperator) < 0
-                            filters[fieldAndOperator] = value
-                    promise = @filter(promise, filters)
+                            # 1. filtering
+                            filters = []
+                            for fieldAndOperator, value of query
+                                if ['field', 'limit', 'offset', 'order'].indexOf(fieldAndOperator) < 0
+                                    filters[fieldAndOperator] = value
+                            array = @filter(array, filters)
 
-                    # 2. sorting
-                    order = query?.order
-                    promise = @sort(promise, order)
+                            # 2. sorting
+                            order = query?.order
+                            array = @sort(array, order)
 
-                    # 3. pagination
-                    offset = query?.offset
-                    limit = query?.limit
-                    promise = @paginate(promise, offset, limit)
+                            # 3. pagination
+                            offset = query?.offset
+                            limit = query?.limit
+                            array = @paginate(array, offset, limit)
 
-                    # TODO 4. properties
-                    property = query?.property
-                    promise = @properties(promise, property)
+                            # TODO 4. properties
+                            property = query?.property
+                            array = @properties(array, property)
 
-                    # 5. fields
-                    fields = query?.field
-                    promise = @fields(promise, fields)
+                            # 5. fields
+                            fields = query?.field
+                            array = @fields(array, fields)
 
-                    return promise
-
-            filter: (promise, filters) ->
-                $q (resolve, reject) ->
-                    promise.then (array) ->
-                        resolve array.filter (v) ->
-                            for fieldAndOperator, value of filters
-                                [field, operator] = fieldAndOperator.split('__')
-                                switch operator
-                                    when 'ne' then cmp = v[field] != value
-                                    when 'lt' then cmp = v[field] <  value
-                                    when 'le' then cmp = v[field] <= value
-                                    when 'gt' then cmp = v[field] >  value
-                                    when 'ge' then cmp = v[field] >= value
-                                    else           cmp = v[field] == value
-                                if !cmp then return false
-                            return true
-
-                # promise = collection.and (v) ->
-                #     for fieldAndOperator, value of filters
-                #         [field, operator] = fieldAndOperator.split('__')
-                #         switch operator
-                #             when 'ne' then cmp = v[field] != value
-                #             when 'lt' then cmp = v[field] <  value
-                #             when 'le' then cmp = v[field] <= value
-                #             when 'gt' then cmp = v[field] >  value
-                #             when 'ge' then cmp = v[field] >= value
-                #             else           cmp = v[field] == value
-                #         if !cmp then return false
-                #     return true
-                # .toArray()
-
-                # convert promise to $q implementation
-                # $q.resolve(promise)
-
-            sort: (promise, order) ->
-                $q (resolve, reject) ->
-                    promise.then (array) ->
-                        compare = (property) ->
-                            if property[0] is '-'
-                                property = property[1..]
-                                reverse = true
-
-                            return (a, b) ->
-                                if reverse then [a, b] = [b, a]
-
-                                if a[property] < b[property] then -1
-                                else if a[property] > b[property] then 1
-                                else 0
-
-                        if angular.isString(order)
-                            array.sort compare(order)
-                        else if angular.isArray(order)
-                            array.sort (a, b) ->
-                                for o in query.order
-                                    f = compare(o)(a, b)
-                                    if f then return f
-                                return 0
-
-                        resolve(array)
-
-            paginate: (promise, offset, limit) ->
-                $q (resolve, reject) ->
-                    promise.then (array) ->
-                        offset ?= 0
-                        if offset >= array.length
-                            resolve([])
-                            return
-
-                        if not limit? or offset + limit > array.length
-                            end = array.length
-                        else
-                            end = offset + limit - 1
-
-                        resolve(array[offset..end])
-
-            properties: (promise, properties) ->
-                $q (resolve, reject) ->
-                    promise.then (array) ->
-                        resolve(array)
-
-            fields: (promise, fields) ->
-                $q (resolve, reject) ->
-                    promise.then (array) ->
-                        if not fields?
                             resolve(array)
-                            return
 
-                        if not angular.isArray(fields) then fields = [fields]
+            filter: (array, filters) ->
+                array.filter (v) ->
+                    for fieldAndOperator, value of filters
+                        [field, operator] = fieldAndOperator.split('__')
+                        switch operator
+                            when 'ne' then cmp = v[field] != value
+                            when 'lt' then cmp = v[field] <  value
+                            when 'le' then cmp = v[field] <= value
+                            when 'gt' then cmp = v[field] >  value
+                            when 'ge' then cmp = v[field] >= value
+                            else           cmp = v[field] == value
+                        if !cmp then return false
+                    return true
 
-                        for element in array
-                            for key of element
-                                if key not in fields
-                                    delete element[key]
+            sort: (array, order) ->
+                compare = (property) ->
+                    if property[0] is '-'
+                        property = property[1..]
+                        reverse = true
 
-                        resolve(array)
+                    return (a, b) ->
+                        if reverse then [a, b] = [b, a]
+
+                        if a[property] < b[property] then -1
+                        else if a[property] > b[property] then 1
+                        else 0
+
+                if angular.isString(order)
+                    array.sort compare(order)
+                else if angular.isArray(order)
+                    array.sort (a, b) ->
+                        for o in query.order
+                            f = compare(o)(a, b)
+                            if f then return f
+                        return 0
+
+                return array
+
+            paginate: (array, offset, limit) ->
+                offset ?= 0
+                if offset >= array.length
+                    return []
+
+                if not limit? or offset + limit > array.length
+                    end = array.length
+                else
+                    end = offset + limit - 1
+
+                return array[offset..end]
+
+            # TODO
+            properties: (array, properties) ->
+                return array
+
+            fields: (array, fields) ->
+                if not fields?
+                    return array
+
+                if not angular.isArray(fields) then fields = [fields]
+
+                for element in array
+                    for key of element
+                        if key not in fields
+                            delete element[key]
+
+                return array
 
             numberOrString: (str) ->
                 number = parseInt str, 10
@@ -175,8 +144,8 @@ class IndexedDB extends Service
                 pathString = path.join('/')
                 match = specification.paths.filter (p) ->
                     replaced = p
-                        .replace ///#{SPECIFICATION.FIELDTYPES.IDENTIFIER}\:\w+///g, '\\d+'
-                        .replace ///#{SPECIFICATION.FIELDTYPES.NUMBER}\:\w+///g, '\\w+'
+                        .replace ///#{SPECIFICATION.FIELDTYPES.IDENTIFIER}\:\w+///g, '\\w+'
+                        .replace ///#{SPECIFICATION.FIELDTYPES.NUMBER}\:\w+///g, '\\d+'
                     ///^#{replaced}$///.test(pathString)
                 .pop()
                 if not match?

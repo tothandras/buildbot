@@ -32,7 +32,7 @@ class Socket extends Service
                             @onMessage?(key, message)
 
                     catch e
-                        @deferred[id]?.reject(e)
+                        $log.error(e)
 
                 @socket.onclose = =>
                     @onClose?()

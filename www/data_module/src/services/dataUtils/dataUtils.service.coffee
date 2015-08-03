@@ -1,5 +1,4 @@
 class DataUtils extends Service
-    constructor: ->
 
     # capitalize first word
     capitalize: (w) ->
@@ -49,11 +48,6 @@ class DataUtils extends Service
             stringId = a.pop()
             return @numberOrStringId(stringId)
         return null
-
-    numberOrStringId: (stringId) ->
-        numberId = parseInt stringId, 10
-        if !isNaN(numberId) then numberId
-        else stringId
 
     copyOrSplit: (arrayOrString) ->
         if angular.isArray(arrayOrString)

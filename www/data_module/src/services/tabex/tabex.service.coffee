@@ -134,7 +134,7 @@ class Tabex extends Service
                             item.path is tracking.path and
                             item.query is tracking.query
                         elapsed = new Date() - new Date(item.lastActive)
-                        active = isNaN(elapsed) or elapsed < 2000 or specification.static == true
+                        active = elapsed < 2000 or specification.static == true
 
                         if inCache and active
                             resolve()
