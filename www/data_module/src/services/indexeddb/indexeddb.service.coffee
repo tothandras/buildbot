@@ -30,7 +30,6 @@ class IndexedDB extends Service
                     if id? then return $q.resolve table.get(id)
 
                     $q (resolve, reject) =>
-                        # TODO note: this takes almost a second
                         table.toArray().then (array) =>
 
                             # 1. filtering
@@ -62,6 +61,8 @@ class IndexedDB extends Service
             filter: (array, filters) ->
                 array.filter (v) ->
                     for fieldAndOperator, value of filters
+                        if ['on', 'true', 'yes'].indexOf(value) > -1 then value = true
+                        else if ['off', 'false', 'no'].indexOf(value) > -1 then value = false
                         [field, operator] = fieldAndOperator.split('__')
                         switch operator
                             when 'ne' then cmp = v[field] != value
@@ -86,16 +87,17 @@ class IndexedDB extends Service
                         else if a[property] > b[property] then 1
                         else 0
 
+                copy = array[..]
                 if angular.isString(order)
-                    array.sort compare(order)
+                    copy.sort compare(order)
                 else if angular.isArray(order)
-                    array.sort (a, b) ->
-                        for o in query.order
+                    copy.sort (a, b) ->
+                        for o in order
                             f = compare(o)(a, b)
                             if f then return f
                         return 0
 
-                return array
+                return copy
 
             paginate: (array, offset, limit) ->
                 offset ?= 0
@@ -164,14 +166,14 @@ class IndexedDB extends Service
 
                 return [tableName, query, id]
 
-            processSpecification: ->
+            processSpecification: (specification) ->
                 # IndexedDB tables
                 stores = {}
-                for name, s of SPECIFICATION
+                for name, s of specification
                     if angular.isArray(s.fields)
                         a = s.fields[..]
                         i = a.indexOf(s.id)
                         if i > -1 then a[i] = "&#{a[i]}"
-                        else a.push('++id')
+                        else a.unshift('++id')
                         stores[name] = a.join(',')
                 return stores

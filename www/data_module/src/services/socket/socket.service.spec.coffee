@@ -33,7 +33,7 @@ describe 'Socket service', ->
         module ($provide) ->
             $provide.constant('webSocketService', webSocketBackend)
 
-    $rootScope = $location = socketService = socket = null
+    $rootScope = $location = socketService = socket = undefined
     injected = ($injector) ->
         $rootScope = $injector.get('$rootScope')
         $location = $injector.get('$location')
