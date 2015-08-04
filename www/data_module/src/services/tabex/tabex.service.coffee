@@ -8,6 +8,7 @@ class Tabex extends Service
             ROLES =
                 MASTER: 'bb.role.master'
                 SLAVE: 'bb.role.slave'
+            _ROLES: ROLES
 
             EVENTS =
                 READY: 'bb.event.ready'
@@ -34,6 +35,8 @@ class Tabex extends Service
                 $window.onunload = $window.onbeforeunload = (e) =>
                     @activatePaths()
                     return null
+
+            getSpecification: (type) -> SPECIFICATION[type]
 
             masterHandler: (data) =>
                 if data.node_id is data.master_id
@@ -89,7 +92,7 @@ class Tabex extends Service
                                     delete @trackedPaths[path]
 
                             # load all tracked path into cache
-                            @loadAll()
+                            @loadAll(@trackedPaths)
 
                 , @debounceTimeout
 
@@ -112,14 +115,14 @@ class Tabex extends Service
                 @trackedPaths = {}
                 @startConsumingAll(paths)
 
-            loadAll: ->
+            loadAll: (paths) ->
                 db = indexedDBService.db
-                db.paths.toArray().then (paths) =>
-                    for path, queries of @trackedPaths
+                db.paths.toArray().then (dbPaths) =>
+                    for path, queries of paths
                         for query in queries
-                            @load(paths, path, query)
+                            @load(dbPaths, path, query)
 
-            load: (paths, path, query) ->
+            load: (dbPaths, path, query) ->
                 $q (resolve, reject) =>
                     db = indexedDBService.db
                     tracking =
@@ -128,8 +131,8 @@ class Tabex extends Service
 
                     # in cache
                     t = dataUtilsService.type(path)
-                    specification = SPECIFICATION[t]
-                    for item in paths
+                    specification = @getSpecification(t)
+                    for item in dbPaths
                         inCache =
                             item.path is tracking.path and
                             item.query is tracking.query
@@ -198,10 +201,10 @@ class Tabex extends Service
                     path: path
 
             startConsumingAll: (paths) ->
-                if angular.isObject(paths)
-                    socketPaths = Object.keys(paths)
-                else if angular.isArray(paths)
+                if angular.isArray(paths)
                     socketPaths = paths[...]
+                else if angular.isObject(paths)
+                    socketPaths = Object.keys(paths)
                 else throw new Error('Parameter paths is not an object or an array')
 
                 # filter socket paths that are included in another paths
