@@ -56,6 +56,8 @@ class Tabex extends Service
             debounceTimeout: 100
             # path: [query]
             trackedPaths: {}
+            # consumed paths
+            consuming: {}
             masterRefreshHandler: (data) ->
                 # debounce logic
                 if @timeoutPromise? then $timeout.cancel(@timeoutPromise)
@@ -70,26 +72,28 @@ class Tabex extends Service
                             try
                                 r = angular.fromJson(channel)
                                 paths[r.path] ?= []
-                                # # subscribe for changes if 'subscribe' is true or undefined
-                                # subscribe = r.query.subscribe or not r.query.subscribe?
-                                # # 'subscribe' is not part of the query
-                                delete r.query.subscribe
-                                # if subscribe then subscribePaths[r.path] = true
                                 paths[r.path].push(r.query)
                             catch e
                                 $log.error('channel is not a JSON string', channel)
                                 return
 
                         @startConsumingAll(paths).then =>
-                            angular.merge @trackedPaths, paths
+                            for path, queries of paths
+                                @trackedPaths[path] ?= []
+                                for query in queries
+                                    if @trackedPaths[path].filter (e) ->
+                                        angular.equals(e, query)
+                                    .length == 0
+                                        @trackedPaths[path].push(query)
                             # send stopConsuming messages after we get response
                             # for startConsuming messages, therefore no update
                             # will be lost
                             for path of @trackedPaths
-                                if path not of paths
+                                if path not of paths and @consuming[path] is true
                                     # unsubscribe removed paths
                                     @stopConsuming(path)
                                     delete @trackedPaths[path]
+                                    @consuming[path] = false
 
                             # load all tracked path into cache
                             @loadAll(@trackedPaths)
@@ -148,11 +152,17 @@ class Tabex extends Service
                         type = dataUtilsService.type(restPath)
                         data = dataUtilsService.unWrap(data, type)
                         db.transaction 'rw', db.paths, db[type], ->
-                            if angular.isArray(data)
-                                for i in data then db[type].put(i)
-                            else db[type].put(data)
-                            db.paths.put(tracking)
+                            try
+                                if not angular.isArray(data) then data = [data]
+                                for i in data then for k, v of i
+                                    if angular.isObject(i[k])
+                                        i[k] = angular.toJson(v)
+                                    db[type].put(i)
+                                db.paths.put(tracking)
                         .then -> resolve()
+                        .catch (error) ->
+                            $log.error(error)
+                            reject(error)
                     , (error) -> reject(error)
 
                 .then =>
@@ -219,6 +229,7 @@ class Tabex extends Service
                 promises = []
                 for path in socketPaths
                     if path not of @trackedPaths
+                        @consuming[path] = true
                         promises.push @startConsuming(path)
 
                 return $q.all(promises)
