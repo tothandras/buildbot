@@ -1,26 +1,35 @@
 class Collection extends Factory
     constructor: ($q, $injector, $log, dataUtilsService, tabexService, indexedDBService, SPECIFICATION) ->
         return class CollectionInstance extends Array
-            Wrapper = null
             constructor: (restPath, query = {}) ->
+                delete query.subscribe
                 @getRestPath = -> restPath
                 @getQuery = -> query
                 @getSocketPath = -> dataUtilsService.socketPath(restPath)
                 @getType = -> dataUtilsService.type(restPath)
                 @getEndpoint = -> dataUtilsService.endpointPath(restPath)
                 @getSpecification = -> SPECIFICATION[@getType()]
+                Wrapper = $injector.get('Wrapper')
+                @getWrapper = -> Wrapper
 
                 ready = $q.defer()
                 @getReadyDeferred = -> ready
                 @getReadyPromise = -> ready.promise
 
-                className = dataUtilsService.className(restPath)
-                Wrapper = $injector.get('Wrapper')
+            subscribe: ->
+                tabexService.on @getSocketPath(), @getQuery(), @listener
+                promise = @getReadyPromise()
+                promise.getArray = => return this
+                return promise
 
-                return @subscribe()
+            unsubscribe: ->
+                @forEach (e) -> e?.unsubscribe?()
+                tabexService.off @getSocketPath(), @getQuery(), @listener
 
             listener: (event) =>
+                if event is tabexService.EVENTS.READY and @length != 0 then return
                 indexedDBService.get(@getRestPath(), @getQuery()).then (data) =>
+                    if not angular.isArray(data) then data = [data]
                     switch event
                         when tabexService.EVENTS.READY then @readyHandler(data)
                         when tabexService.EVENTS.UPDATE then @updateHandler(data)
@@ -28,7 +37,7 @@ class Collection extends Factory
                         else $log.error('Unhandled tabex event', event)
 
             readyHandler: (data) ->
-                if @length == 0 then @from(data)
+                @from(data)
                 @getReadyDeferred()?.resolve(@)
 
             # add new elements and remove old ones
@@ -51,22 +60,12 @@ class Collection extends Factory
                 for e in data
                     @forEach (i) -> if e[id] == i[id] then i.update(e)
 
-            subscribe: ->
-                tabexService.on @getSocketPath(), @getQuery(), @listener
-                promise = @getReadyPromise()
-                promise.getArray = => return this
-                return promise
-
-            unsubscribe: ->
-                @forEach (e) -> e?.unsubscribe?()
-                tabexService.off @getSocketPath(), @getQuery(), @listener
-
             from: (data) ->
-                if not angular.isArray(data) then @add(data)
                 # add items one by one
-                else @add(i) for i in data
+                @add(i) for i in data
 
             add: (element) ->
+                Wrapper = @getWrapper()
                 instance = new Wrapper(element, @getEndpoint())
                 @push(instance)
 
