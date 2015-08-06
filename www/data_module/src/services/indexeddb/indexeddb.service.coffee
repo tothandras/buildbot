@@ -31,6 +31,12 @@ class IndexedDB extends Service
 
                     $q (resolve, reject) =>
                         table.toArray().then (array) =>
+                            array = array.map (e) ->
+                                for k, v of e
+                                    try
+                                        e[k] = angular.fromJson(v)
+                                    catch error then # ignore
+                                return e
 
                             # 1. filtering
                             filters = []
