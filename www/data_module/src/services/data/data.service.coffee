@@ -35,13 +35,13 @@ class Data extends Provider
                     query = args.pop()
                 return query or {}
 
-            # control: (method, params) ->
-            #     @jsonrpc ?= 1
-            #     restService.post
-            #         id: @jsonrpc++
-            #         jsonrpc: '2.0'
-            #         method: method
-            #         params: params
+            control: (url, method, params) ->
+                @jsonrpc ?= 1
+                restService.post url,
+                    id: @jsonrpc++
+                    jsonrpc: '2.0'
+                    method: method
+                    params: params
 
             # generate functions for root endpoints
             @generateEndpoints: (endpoints) ->
@@ -50,7 +50,6 @@ class Data extends Provider
                     E = dataUtilsService.capitalize(e)
                     @::["get#{E}"] = (args...) =>
                         self.get(e, args...)
-
 
             # opens a new accessor
             open: (scope) ->
