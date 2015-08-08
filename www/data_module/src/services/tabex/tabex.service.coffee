@@ -144,15 +144,16 @@ class Tabex extends Service
                     restService.get(restPath, query).then (data) =>
                         type = dataUtilsService.type(restPath)
                         data = dataUtilsService.unWrap(data, type)
-                        db.transaction 'rw', db.paths, db[type], ->
-                            try
-                                if not angular.isArray(data) then data = [data]
-                                for i in data then for k, v of i
-                                    if angular.isObject(i[k])
-                                        i[k] = angular.toJson(v)
-                                    db[type].put(i)
-                                db.paths.put(tracking)
-                        .then -> resolve()
+                        db.transaction 'rw', db[type], ->
+                            if not angular.isArray(data) then data = [data]
+                            for i in data then for k, v of i
+                                if angular.isObject(i[k])
+                                    i[k] = angular.toJson(v)
+                                db[type].put(i)
+                        .then ->
+                            db.paths.put(tracking)
+                            .then -> resolve()
+                            .catch (error) -> reject(error)
                         .catch (error) -> reject(error)
                     , (error) -> reject(error)
 

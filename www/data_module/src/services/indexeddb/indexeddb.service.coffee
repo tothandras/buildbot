@@ -1,22 +1,16 @@
-class DBStores extends Constant
-    constructor: ->
-        return {
-            paths: '&[path+query],path,query,lastActive'
-        }
-
 class IndexedDB extends Service
     constructor: ($log, $window, $injector, $q, dataUtilsService, DBSTORES, SPECIFICATION) ->
         return new class IndexedDBService
             constructor: ->
                 @db = new $window.Dexie('BBCache')
-                dbStores = angular.extend {},
-                    @processSpecification(SPECIFICATION), DBSTORES
-                @db.version(1).stores(dbStores)
+                stores = {}
+                angular.extend stores, @processSpecification(SPECIFICATION), DBSTORES
+                @db.version(1).stores(stores)
 
                 # global db error handler
                 @db.on 'error', (e) -> $log.error(e)
 
-                @db.open().catch (e) -> $log.error(e)
+                @db.open().catch (e) -> $log.error 'db open', e
 
             get: (url, query = {}) ->
                 [tableName, q, id] = @processUrl(url)
