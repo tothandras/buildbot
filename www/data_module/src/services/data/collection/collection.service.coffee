@@ -2,7 +2,6 @@ class Collection extends Factory
     constructor: ($q, $injector, $log, dataUtilsService, tabexService, indexedDBService, SPECIFICATION) ->
         return class CollectionInstance extends Array
             constructor: (restPath, query = {}) ->
-                delete query.subscribe
                 @getRestPath = -> restPath
                 @getQuery = -> query
                 @getSocketPath = -> dataUtilsService.socketPath(restPath)
@@ -28,7 +27,9 @@ class Collection extends Factory
 
             listener: (event) =>
                 if event is tabexService.EVENTS.READY and @length != 0 then return
-                indexedDBService.get(@getRestPath(), @getQuery()).then (data) =>
+                query = angular.copy(@getQuery())
+                delete query.subscribe
+                indexedDBService.get(@getRestPath(), query).then (data) =>
                     if not angular.isArray(data) then data = [data]
                     switch event
                         when tabexService.EVENTS.READY then @readyHandler(data)

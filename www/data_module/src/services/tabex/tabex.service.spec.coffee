@@ -131,9 +131,9 @@ describe 'Tabex service', ->
             tabexService.debounceTimeout = 0
             expect(socketService.send).not.toHaveBeenCalled()
             $rootScope.$apply -> clientMock.callMasterHandler(true)
-            tabexService.on 'path1/*/*', ->
-            tabexService.on 'path1/1/*', ->
-            tabexService.on 'path2/*/*', ->
+            tabexService.on 'path1/*/*', {subscribe: true}, ->
+            tabexService.on 'path1/1/*', {subscribe: true}, ->
+            tabexService.on 'path2/*/*', {subscribe: true}, ->
             $timeout.flush()
             expect(socketService.send).toHaveBeenCalledWith(cmd: 'startConsuming', path: 'path1/*/*')
             expect(socketService.send).toHaveBeenCalledWith(cmd: 'startConsuming', path: 'path2/*/*')
@@ -151,6 +151,9 @@ describe 'Tabex service', ->
             $rootScope.$apply -> clientMock.callMasterHandler(true)
             $timeout.flush()
             expect(tabexService.loadAll).toHaveBeenCalled()
+
+        it 'should add queries to the trackedPath', ->
+
 
     # TODO ->
     describe 'messageHandler(key, message)', ->
@@ -174,9 +177,9 @@ describe 'Tabex service', ->
             tabexService.debounceTimeout = 0
             $rootScope.$apply -> clientMock.callMasterHandler(true)
 
-            tabexService.on 'asd/*/*', ->
-            tabexService.on 'asd/1/*', ->
-            tabexService.on 'bsd/*/*', ->
+            tabexService.on 'asd/*/*', {subscribe: true}, ->
+            tabexService.on 'asd/1/*', {subscribe: true}, ->
+            tabexService.on 'bsd/*/*', {subscribe: true}, ->
 
             $timeout.flush()
 
@@ -214,9 +217,9 @@ describe 'Tabex service', ->
             $rootScope.$apply()
             for p, qs of paths
                 for q in qs
-                    expect(tabexService.load).toHaveBeenCalledWith([], p, q)
+                    expect(tabexService.load).toHaveBeenCalledWith(p, q, [])
 
-    describe 'load(dbPaths, path, query)', ->
+    describe 'load(path, query, dbPaths)', ->
 
         it 'should load not cached data', ->
             spyOn(tabexService, 'emit')
@@ -226,7 +229,7 @@ describe 'Tabex service', ->
 
             path = 'asd/*/*'
             query = {}
-            tabexService.load([], path, query)
+            tabexService.load(path, query)
             expect(tabexService.emit).not.toHaveBeenCalled()
             $rootScope.$apply()
             expect(tabexService.emit).toHaveBeenCalledWith(path, query, tabexService.EVENTS.READY)
@@ -239,11 +242,11 @@ describe 'Tabex service', ->
             path = ''
             query = {}
             now = new Date()
-            tabexService.load [
+            tabexService.load path, query, [
                 path: path
                 query: angular.toJson(query)
                 lastActive: now
-            ], path, query
+            ]
             $rootScope.$apply()
             expect(tabexService.emit).toHaveBeenCalledWith(path, query, tabexService.EVENTS.READY)
 
@@ -255,11 +258,11 @@ describe 'Tabex service', ->
             path = ''
             query = {}
             now = new Date()
-            tabexService.load [
+            tabexService.load path, query, [
                 path: path
                 query: angular.toJson(query)
                 lastActive: new Date(0)
-            ], path, query
+            ]
             $rootScope.$apply()
             expect(tabexService.emit).toHaveBeenCalledWith(path, query, tabexService.EVENTS.READY)
 

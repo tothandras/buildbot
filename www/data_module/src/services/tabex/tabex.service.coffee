@@ -78,25 +78,18 @@ class Tabex extends Service
                                 return
 
                         @startConsumingAll(paths).then =>
-                            for path, queries of paths
-                                @trackedPaths[path] ?= []
-                                for query in queries
-                                    if @trackedPaths[path].filter (e) ->
-                                        angular.equals(e, query)
-                                    .length == 0
-                                        @trackedPaths[path].push(query)
                             # send stopConsuming messages after we get response
                             # for startConsuming messages, therefore no update
                             # will be lost
-                            for path of @trackedPaths
-                                if path not of paths and @consuming[path] is true
+                            for path of @consuming
+                                if path not of paths
                                     # unsubscribe removed paths
                                     @stopConsuming(path)
-                                    delete @trackedPaths[path]
-                                    @consuming[path] = false
+                                    delete @consuming[path]
 
+                            @trackedPaths = paths
                             # load all tracked path into cache
-                            @loadAll(@trackedPaths)
+                            @loadAll(paths)
 
                 , @debounceTimeout
 
@@ -124,9 +117,9 @@ class Tabex extends Service
                 db.paths.toArray().then (dbPaths) =>
                     for path, queries of paths
                         for query in queries
-                            @load(dbPaths, path, query)
+                            @load(path, query, dbPaths)
 
-            load: (dbPaths, path, query) ->
+            load: (path, query, dbPaths = []) ->
                 $q (resolve, reject) =>
                     db = indexedDBService.db
                     tracking =
@@ -160,13 +153,13 @@ class Tabex extends Service
                                     db[type].put(i)
                                 db.paths.put(tracking)
                         .then -> resolve()
-                        .catch (error) ->
-                            $log.error(error)
-                            reject(error)
+                        .catch (error) -> reject(error)
                     , (error) -> reject(error)
 
                 .then =>
                     @emit path, query, EVENTS.READY
+                , (error) =>
+                    $log.error(error)
 
             activatePaths: ->
                 paths = angular.copy(@trackedPaths)
@@ -181,16 +174,27 @@ class Tabex extends Service
 
             on: (options..., listener) ->
                 [path, query] = options
+                query = angular.copy(query) or {}
+                subscribe = query.subscribe
+                delete query.subscribe
+                # if subscribe is false, we just load the data
+                if subscribe == false
+                    @load(path, query).then -> listener(EVENTS.READY)
+                    return
+                # if subscribe is true, we subscribe on events
                 channel =
                     path: path
-                    query: query or {}
+                    query: query
                 @client.on angular.toJson(channel), listener
 
             off: (options..., listener) ->
                 [path, query] = options
+                query = angular.copy(query) or {}
+                delete query.subscribe
+
                 channel =
                     path: path
-                    query: query or {}
+                    query: query
                 @client.off angular.toJson(channel), listener
 
             emit: (options..., message) ->
@@ -233,3 +237,12 @@ class Tabex extends Service
                         promises.push @startConsuming(path)
 
                 return $q.all(promises)
+
+            mergePaths: (dest, src) ->
+                for path, queries of src
+                    dest[path] ?= []
+                    for query in queries
+                        if dest[path].filter (e) ->
+                            angular.equals(e, query)
+                        .length == 0
+                            dest[path].push(query)

@@ -17,10 +17,12 @@ class Data extends Provider
             get: (args...) ->
 
                 query = @processArguments(args)
+                query.subscribe ?= false
 
                 restPath = dataUtilsService.restPath(args)
                 # up to date collection, this will be returned
-                promise = new Collection(restPath, query)
+                collection = new Collection(restPath, query)
+                promise = collection.subscribe()
 
                 return promise
 
@@ -31,7 +33,7 @@ class Data extends Provider
                 [..., last] = args
                 if angular.isObject(last)
                     query = args.pop()
-                return query
+                return query or {}
 
             # control: (method, params) ->
             #     @jsonrpc ?= 1
@@ -76,6 +78,10 @@ class Data extends Provider
                         endpoints.forEach (e) =>
                             E = dataUtilsService.capitalize(e)
                             @::["get#{E}"] = (args...) =>
+                                last = args[args.length - 1]
+                                if angular.isObject(last)
+                                    last.subscribe ?= true
+                                else args.push(subscribe: true)
                                 p = self["get#{E}"](args...)
                                 collections.push(p.getArray())
                                 return p

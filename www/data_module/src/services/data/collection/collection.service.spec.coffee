@@ -94,6 +94,14 @@ describe 'Collection', ->
             $rootScope.$apply()
             expect(c.newHandler).toHaveBeenCalledWith(data)
 
+        it 'should remove the subscribe field from the query', ->
+            query = subscribe: false
+            c = new Collection('asd', query)
+            spyOn(indexedDBService, 'get').and.returnValue($q.resolve())
+            c.listener(tabexService.EVENTS.READY)
+            expect(indexedDBService.get).toHaveBeenCalledWith('asd', {})
+            expect(c.getQuery()).toEqual(query)
+
     describe 'readyHandler(data)', ->
 
         it 'should fill up the collection', ->
