@@ -50,7 +50,7 @@ class IndexedDB extends Service
                             for fieldAndOperator, value of query
                                 if ['field', 'limit', 'offset', 'order'].indexOf(fieldAndOperator) < 0
                                     filters[fieldAndOperator] = value
-                            array = @filter(array, filters)
+                            array = @filter(array, filters, tableName)
 
                             # 2. sorting
                             order = query?.order
@@ -71,7 +71,7 @@ class IndexedDB extends Service
 
                             resolve(array)
 
-            filter: (array, filters) ->
+            filter: (array, filters, tableName) ->
                 array.filter (v) ->
                     for fieldAndOperator, value of filters
                         if ['on', 'true', 'yes'].indexOf(value) > -1 then value = true
@@ -83,7 +83,18 @@ class IndexedDB extends Service
                             when 'le' then cmp = v[field] <= value
                             when 'gt' then cmp = v[field] >  value
                             when 'ge' then cmp = v[field] >= value
-                            else           cmp = v[field] == value
+                            else
+                                # TODO unhandled cases: masters, forceschedulers
+                                # eventually the SPECIFICATION must contain these
+                                switch tableName
+                                    when 'buildslaves'
+                                        if field in ['builderid', 'masterid']
+                                            for i in v['configured_on']
+                                                cmp = i[field] is value
+                                                if cmp then break
+                                    when 'forceschedulers' then cmp = true
+                                    when 'masters' then cmp = true
+                                    else cmp = v[field] == value
                         if !cmp then return false
                     return true
 
