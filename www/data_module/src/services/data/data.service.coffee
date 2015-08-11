@@ -1,30 +1,43 @@
 class Data extends Provider
+    cache: true
+    config = null
     constructor: ->
-    # TODO caching
-    cache: false
+        config =
+            cache: @cache
 
     ### @ngInject ###
-    $get: ($log, $injector, $q, Collection, restService, dataUtilsService, tabexService, indexedDBService, SPECIFICATION) ->
+    $get: ($log, $injector, $q, $window, Collection, restService, dataUtilsService, tabexService, indexedDBService, SPECIFICATION) ->
         return new class DataService
             self = null
             constructor: ->
                 self = @
+                angular.extend(@, config)
                 # generate loadXXX functions for root endpoints
                 endpoints = Object.keys(SPECIFICATION).filter (e) -> SPECIFICATION[e].root
                 @constructor.generateEndpoints(endpoints)
 
+            clearCache: ->
+                indexedDBService.clear().then ->
+                    if $injector.has('$state')
+                        $injector.get('$state').reload()
+                    else if $injector.has('$route')
+                        $injector.get('$route').reload()
+                    else
+                        $window.location.reload()
+
             # the arguments are in this order: endpoint, id, child, id of child, query
             get: (args...) ->
 
-                query = @processArguments(args)
+                [restPath, query] = @processArguments(args)
                 query.subscribe ?= false
 
-                restPath = dataUtilsService.restPath(args)
                 # up to date collection, this will be returned
-                collection = new Collection(restPath, query)
-                promise = collection.subscribe()
+                collection = @createCollection(restPath, query)
+                collection.subscribe()
 
-                return promise
+            # for easier testing
+            createCollection: (args...) ->
+                new Collection(args...)
 
             processArguments: (args) ->
                 # keep defined arguments only
@@ -33,9 +46,10 @@ class Data extends Provider
                 [..., last] = args
                 if angular.isObject(last)
                     query = args.pop()
-                return query or {}
+                restPath = dataUtilsService.restPath(args)
+                return [restPath, query or {}]
 
-            control: (url, method, params) ->
+            control: (url, method, params = {}) ->
                 @jsonrpc ?= 1
                 restService.post url,
                     id: @jsonrpc++
@@ -56,6 +70,7 @@ class Data extends Provider
                 return new class DataAccessor
                     collections = []
                     constructor: ->
+                        @collections = collections
                         # generate loadXXX functions for root endpoints
                         endpoints = Object.keys(SPECIFICATION).filter (e) -> SPECIFICATION[e].root
                         @constructor.generateEndpoints(endpoints)
