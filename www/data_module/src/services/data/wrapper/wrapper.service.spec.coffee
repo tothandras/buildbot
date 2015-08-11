@@ -2,22 +2,27 @@ describe 'Wrapper', ->
     beforeEach module 'bbData'
     beforeEach module ($provide) ->
         $provide.constant 'SPECIFICATION',
-            asd:
+            a:
                 id: 'aid'
                 identifier: 'aidentifier'
+                paths: [
+                    'b'
+                    'b/n:bid'
+                ]
 
-    Wrapper = $q = $rootScope = tabexService = indexedDBService = data = i = undefined
+    Wrapper = $q = $rootScope = tabexService = indexedDBService = dataService = data = i = undefined
     injected = ($injector) ->
         $q = $injector.get('$q')
         $rootScope = $injector.get('$rootScope')
         Wrapper = $injector.get('Wrapper')
         tabexService = $injector.get('tabexService')
         indexedDBService = $injector.get('indexedDBService')
+        dataService = $injector.get('dataService')
 
         data =
             aid: 12
             aidentifier: 'n12'
-        i = new Wrapper(data, 'asd')
+        i = new Wrapper(data, 'a')
 
     beforeEach(inject(injected))
 
@@ -30,13 +35,22 @@ describe 'Wrapper', ->
             expect(i[k]).toEqual(v)
 
     it 'should generate functions for every type in the specification', ->
-        expect(i.loadAsd).toBeDefined()
-        expect(angular.isFunction(i.loadAsd)).toBeTruthy()
+        expect(i.loadA).toBeDefined()
+        expect(angular.isFunction(i.loadA)).toBeTruthy()
 
-    # TODO
     describe 'get(args)', ->
 
-        it '', ->
+        it 'should call dataService.get', ->
+            spyOn(dataService, 'get')
+            expect(dataService.get).not.toHaveBeenCalled()
+            i.get('b')
+            expect(dataService.get).toHaveBeenCalledWith('a', 12, 'b')
+
+            i.get('b', {param: 1})
+            expect(dataService.get).toHaveBeenCalledWith('a', 12, 'b', {param: 1})
+
+            i.get('b', 11)
+            expect(dataService.get).toHaveBeenCalledWith('a', 12, 'b', 11)
 
     describe 'getId()', ->
 

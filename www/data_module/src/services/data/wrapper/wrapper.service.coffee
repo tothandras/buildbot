@@ -50,11 +50,6 @@ class Wrapper extends Factory
                     E = dataUtilsService.capitalize(e)
                     # adds loadXXX functions to the prototype
                     @::["load#{E}"] = (args...) ->
-                        query = []
-                        query["#{@classId()}"] = @getId()
-                        idx = args.length - 1
-                        if angular.isObject(args[idx]) then angular.extend args[idx], query
-                        else args.push(query)
                         p = @get(e, args...)
                         @[e] = p.getArray()
                         return p
