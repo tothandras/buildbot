@@ -141,7 +141,7 @@ class IndexedDB extends Service
 
                 return array
 
-            numberOrString: (str) ->
+            numberOrString: (str = null) ->
                 # if already a number
                 if angular.isNumber(str) then return str
                 # else parse string to integer
@@ -169,19 +169,22 @@ class IndexedDB extends Service
                 if not match?
                     throw new Error("No child path (#{path.join('/')}) found for root (#{root})")
 
-                id = null
-                last = match.split('/').pop()
-                [tableName, fieldValue] = path[(if path.length % 2 is 0 then -2 else -1)..]
-                if last.indexOf(':') > -1
-                    [fieldType, fieldName] = last.split(':')
-                    isId = fieldName is SPECIFICATION[tableName]?.id
-                    if fieldType is SPECIFICATION.FIELDTYPES.NUMBER
-                        # try to parse string to number
-                        if isId then id = @numberOrString(fieldValue)
-                        else query[fieldName] = @numberOrString(fieldValue)
-                    else
-                        if isId then id = fieldValue
-                        else query[fieldName] = fieldValue
+                match = match.split('/')
+
+                if path.length % 2 is 0
+                    fieldValue = @numberOrString path.pop()
+                    [fieldType, fieldName] = match.pop().split(':')
+                tableName = path.pop()
+                match.pop()
+                parentFieldValue = @numberOrString(path.pop() or id)
+                parentFieldName = match.pop()?.split(':').pop() or SPECIFICATION[root].id
+
+                if fieldName is SPECIFICATION[tableName]?.id
+                    id = fieldValue
+                else
+                    query[parentFieldName] = parentFieldValue
+                    if fieldName? then query[fieldName] = fieldValue
+                    id = null
 
                 return [tableName, query, id]
 

@@ -27,6 +27,7 @@ describe 'IndexedDB service', ->
 
             typeC:
                 id: 'idC'
+                identifier: 'stringC'
                 paths: []
         $provide.constant 'SPECIFICATION', specification
 
@@ -261,25 +262,30 @@ describe 'IndexedDB service', ->
             expect(id).toBe(12)
 
         it 'should return [root, query, id] (empty query + no id)', ->
-            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB')
-            expect(tableName).toBe('typeB')
-            expect(query).toEqual({})
-            expect(id).toBeNull()
-
-            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/asd/typeC')
+            [tableName, query, id] = indexedDBService.processUrl('typeC')
             expect(tableName).toBe('typeC')
             expect(query).toEqual({})
             expect(id).toBeNull()
 
         it 'should return [root, query, id] (query including number or string field)', ->
-            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/bid/typeC/12')
+            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/stringID/typeC/1')
             expect(tableName).toBe('typeC')
-            expect(query).toEqual(numberC: 12)
+            expect(query).toEqual({idB: 'stringID', numberC: 1})
             expect(id).toBeNull()
 
-            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/bid/typeC/stringField')
+            [tableName, query, id] = indexedDBService.processUrl('typeB/11/typeC/stringID')
             expect(tableName).toBe('typeC')
-            expect(query).toEqual(stringC: 'stringField')
+            expect(query).toEqual({idB: 11, stringC: 'stringID'})
+            expect(id).toBeNull()
+
+            [tableName, query, id] = indexedDBService.processUrl('typeC/stringID')
+            expect(tableName).toBe('typeC')
+            expect(query).toEqual({stringC: 'stringID'})
+            expect(id).toBeNull()
+
+            [tableName, query, id] = indexedDBService.processUrl('typeB/stringID/typeC')
+            expect(tableName).toBe('typeC')
+            expect(query).toEqual({idB: 'stringID'})
             expect(id).toBeNull()
 
         it 'should trow and error if there is no match for a certain url', ->
