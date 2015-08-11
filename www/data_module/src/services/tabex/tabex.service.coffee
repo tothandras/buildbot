@@ -151,7 +151,8 @@ class Tabex extends Service
                                     i[k] = angular.toJson(v)
                                 db[type].put(i)
                         .then ->
-                            db.paths.put(tracking)
+                            db.transaction 'rw', db.paths, ->
+                                db.paths.put(tracking)
                             .then -> resolve()
                             .catch (error) -> reject(error)
                         .catch (error) -> reject(error)

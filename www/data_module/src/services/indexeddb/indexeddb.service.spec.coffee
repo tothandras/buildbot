@@ -1,9 +1,54 @@
 describe 'IndexedDB service', ->
     beforeEach module 'bbData'
+    beforeEach module ($provide) ->
+        specification =
+            FIELDTYPES:
+                IDENTIFIER: 'i'
+                NUMBER: 'n'
 
-    indexedDBService = testArray = undefined
+            typeA:
+                id: 'idA'
+                paths: [
+                    'typeB'
+                    'typeB/i:idB'
+                    'typeB/i:idB/typeC'
+                    'typeB/i:idB/typeC/i:stringC'
+                    'typeB/i:idB/typeC/n:numberC'
+                    'typeC'
+                ]
+
+            typeB:
+                id: 'idB'
+                paths: [
+                    'typeC'
+                    'typeC/n:idC'
+                    'typeC/i:stringC'
+                ]
+
+            typeC:
+                id: 'idC'
+                paths: []
+        $provide.constant 'SPECIFICATION', specification
+
+    indexedDBService = testArray = $rootScope = db = dbMock = undefined
     injected = ($injector) ->
         indexedDBService = $injector.get('indexedDBService')
+        $rootScope = $injector.get('$rootScope')
+
+        fn = null
+        promise =
+          then: (fn) ->
+              fn()
+              promise
+          catch: (fn) ->
+              fn('error')
+              promise
+          finally: (fn) ->
+              fn()
+              promise
+        dbMock =
+            open: jasmine.createSpy('open').and.returnValue(promise)
+            delete: jasmine.createSpy('delete').and.returnValue(promise)
 
         testArray = [
                 builderid: 1
@@ -32,6 +77,33 @@ describe 'IndexedDB service', ->
 
     it 'should be defined', ->
         expect(indexedDBService).toBeDefined()
+
+    describe 'open()', ->
+
+        it 'should open the db and return a promise', ->
+            db = indexedDBService.db
+            indexedDBService.db = dbMock
+            callback = jasmine.createSpy('cb')
+            indexedDBService.open().then(callback)
+            expect(callback).not.toHaveBeenCalled()
+            $rootScope.$apply()
+            expect(callback).toHaveBeenCalled()
+            indexedDBService.db = db
+
+    describe 'clear()', ->
+
+        it 'should delete and reopen the database and return a promise', ->
+            spyOn(indexedDBService, 'open').and.callThrough()
+            db = indexedDBService.db
+            indexedDBService.db = dbMock
+            callback = jasmine.createSpy('cb')
+            expect(indexedDBService.open).not.toHaveBeenCalled()
+            indexedDBService.clear().then(callback)
+            expect(callback).not.toHaveBeenCalled()
+            $rootScope.$apply()
+            expect(indexedDBService.open).toHaveBeenCalled()
+            expect(callback).toHaveBeenCalled()
+            indexedDBService.db = db
 
     describe 'filter(array, filters)', ->
 
@@ -169,8 +241,50 @@ describe 'IndexedDB service', ->
             result = indexedDBService.numberOrString('w3as')
             expect(result).toBe('w3as')
 
-    # TODO
     describe 'processUrl(url)', ->
+
+        it 'should return [root, query, id] (empty query + id)', ->
+            [tableName, query, id] = indexedDBService.processUrl('typeA/11')
+            expect(tableName).toBe('typeA')
+            expect(query).toEqual({})
+            expect(id).toBe(11)
+
+            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/stringB')
+            expect(tableName).toBe('typeB')
+            expect(query).toEqual({})
+            # the id of typeB is a string
+            expect(id).toBe('stringB')
+
+            [tableName, query, id] = indexedDBService.processUrl('typeB/11/typeC/12')
+            expect(tableName).toBe('typeC')
+            expect(query).toEqual({})
+            expect(id).toBe(12)
+
+        it 'should return [root, query, id] (empty query + no id)', ->
+            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB')
+            expect(tableName).toBe('typeB')
+            expect(query).toEqual({})
+            expect(id).toBeNull()
+
+            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/asd/typeC')
+            expect(tableName).toBe('typeC')
+            expect(query).toEqual({})
+            expect(id).toBeNull()
+
+        it 'should return [root, query, id] (query including number or string field)', ->
+            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/bid/typeC/12')
+            expect(tableName).toBe('typeC')
+            expect(query).toEqual(numberC: 12)
+            expect(id).toBeNull()
+
+            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/bid/typeC/stringField')
+            expect(tableName).toBe('typeC')
+            expect(query).toEqual(stringC: 'stringField')
+            expect(id).toBeNull()
+
+        it 'should trow and error if there is no match for a certain url', ->
+            fn = -> indexedDBService.processUrl('typeA/11/typeB/12')
+            expect(fn).toThrowError()
 
     describe 'processSpecification(specification)', ->
 

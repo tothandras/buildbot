@@ -164,10 +164,10 @@ class Specification extends Constant
         forceschedulers:
             id: 'name'
             fields: [
+                'name'
                 'all_fields'
                 'builder_names'
                 'label'
-                'name'
             ]
             root: true
             paths: []

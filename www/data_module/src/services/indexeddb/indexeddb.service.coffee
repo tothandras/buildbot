@@ -1,5 +1,5 @@
 class IndexedDB extends Service
-    constructor: ($log, $window, $injector, $q, dataUtilsService, DBSTORES, SPECIFICATION) ->
+    constructor: ($log, $injector, $q, $window, dataUtilsService, DBSTORES, SPECIFICATION) ->
         return new class IndexedDBService
             constructor: ->
                 @db = new $window.Dexie('BBCache')
@@ -9,15 +9,28 @@ class IndexedDB extends Service
 
                 # global db error handler
                 @db.on 'error', (e) -> $log.error(e)
+                # open the database
+                @open()
 
-                @db.open().catch (e) -> $log.error 'db open', e
+            open: ->
+                $q (resolve) =>
+                    @db.open()
+                    .catch (e) -> $log.error 'indexedDBService: open', e
+                    .finally -> resolve()
+
+            clear: ->
+                $q (resolve) =>
+                    @db.delete()
+                    .catch (e) -> $log.error 'indexedDBService: clear', e
+                    .finally => @open().then -> resolve()
 
             get: (url, query = {}) ->
                 [tableName, q, id] = @processUrl(url)
                 angular.extend query, q
 
-                table = @db[tableName]
+                if not SPECIFICATION[tableName]? then return $q.resolve([])
 
+                table = @db[tableName]
                 @db.transaction 'r', table, =>
 
                     # convert promise to $q implementation
@@ -129,6 +142,9 @@ class IndexedDB extends Service
                 return array
 
             numberOrString: (str) ->
+                # if already a number
+                if angular.isNumber(str) then return str
+                # else parse string to integer
                 number = parseInt str, 10
                 if !isNaN(number) then number else str
 
@@ -146,23 +162,26 @@ class IndexedDB extends Service
                 pathString = path.join('/')
                 match = specification.paths.filter (p) ->
                     replaced = p
-                        .replace ///#{SPECIFICATION.FIELDTYPES.IDENTIFIER}\:\w+///g, '\\w+'
+                        .replace ///#{SPECIFICATION.FIELDTYPES.IDENTIFIER}\:\w+///g, '[a-zA-Z]+'
                         .replace ///#{SPECIFICATION.FIELDTYPES.NUMBER}\:\w+///g, '\\d+'
                     ///^#{replaced}$///.test(pathString)
                 .pop()
                 if not match?
-                    throw new Error("No child path (#{path.join('/')}) found for root (#{endpoint})")
+                    throw new Error("No child path (#{path.join('/')}) found for root (#{root})")
 
                 id = null
                 last = match.split('/').pop()
+                [tableName, fieldValue] = path[(if path.length % 2 is 0 then -2 else -1)..]
                 if last.indexOf(':') > -1
                     [fieldType, fieldName] = last.split(':')
-                    fieldValue = path.pop()
-                    if fieldName.indexOf('id', fieldName.length - 'id'.length) != -1
-                        id = @numberOrString(fieldValue)
+                    isId = fieldName is SPECIFICATION[tableName]?.id
+                    if fieldType is SPECIFICATION.FIELDTYPES.NUMBER
+                        # try to parse string to number
+                        if isId then id = @numberOrString(fieldValue)
+                        else query[fieldName] = @numberOrString(fieldValue)
                     else
-                        query[fieldName] = @numberOrString(fieldValue)
-                tableName = path.pop()
+                        if isId then id = fieldValue
+                        else query[fieldName] = fieldValue
 
                 return [tableName, query, id]
 
