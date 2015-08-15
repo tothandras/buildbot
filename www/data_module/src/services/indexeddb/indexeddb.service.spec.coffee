@@ -245,52 +245,75 @@ describe 'IndexedDB service', ->
     describe 'processUrl(url)', ->
 
         it 'should return [root, query, id] (empty query + id)', ->
-            [tableName, query, id] = indexedDBService.processUrl('typeA/11')
-            expect(tableName).toBe('typeA')
-            expect(query).toEqual({})
-            expect(id).toBe(11)
+            indexedDBService.processUrl('typeA/11').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeA')
+                expect(query).toEqual({})
+                expect(id).toBe(11)
 
-            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/stringB')
-            expect(tableName).toBe('typeB')
-            expect(query).toEqual({})
-            # the id of typeB is a string
-            expect(id).toBe('stringB')
+            indexedDBService.processUrl('typeA/11/typeB/stringB').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeB')
+                expect(query).toEqual({})
+                # the id of typeB is a string
+                expect(id).toBe('stringB')
 
-            [tableName, query, id] = indexedDBService.processUrl('typeB/11/typeC/12')
-            expect(tableName).toBe('typeC')
-            expect(query).toEqual({})
-            expect(id).toBe(12)
+            indexedDBService.processUrl('typeB/11/typeC/12').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeC')
+                expect(query).toEqual({})
+                expect(id).toBe(12)
+
+            $rootScope.$apply()
 
         it 'should return [root, query, id] (empty query + no id)', ->
-            [tableName, query, id] = indexedDBService.processUrl('typeC')
-            expect(tableName).toBe('typeC')
-            expect(query).toEqual({})
-            expect(id).toBeNull()
+            indexedDBService.processUrl('typeC').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeC')
+                expect(query).toEqual({})
+                expect(id).toBeNull()
+
+            $rootScope.$apply()
 
         it 'should return [root, query, id] (query including number or string field)', ->
-            [tableName, query, id] = indexedDBService.processUrl('typeA/11/typeB/stringID/typeC/1')
-            expect(tableName).toBe('typeC')
-            expect(query).toEqual({idB: 'stringID', numberC: 1})
-            expect(id).toBeNull()
+            indexedDBService.processUrl('typeA/11/typeB/stringID/typeC/1').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeC')
+                expect(query).toEqual({idB: 'stringID', numberC: 1})
+                expect(id).toBeNull()
 
-            [tableName, query, id] = indexedDBService.processUrl('typeB/11/typeC/stringID')
-            expect(tableName).toBe('typeC')
-            expect(query).toEqual({idB: 11, stringC: 'stringID'})
-            expect(id).toBeNull()
+            indexedDBService.processUrl('typeB/11/typeC/stringID').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeC')
+                expect(query).toEqual({idB: 11, stringC: 'stringID'})
+                expect(id).toBeNull()
 
-            [tableName, query, id] = indexedDBService.processUrl('typeC/stringID')
-            expect(tableName).toBe('typeC')
-            expect(query).toEqual({stringC: 'stringID'})
-            expect(id).toBeNull()
+            indexedDBService.processUrl('typeC/stringID').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeC')
+                expect(query).toEqual({stringC: 'stringID'})
+                expect(id).toBeNull()
 
-            [tableName, query, id] = indexedDBService.processUrl('typeB/stringID/typeC')
-            expect(tableName).toBe('typeC')
-            expect(query).toEqual({idB: 'stringID'})
-            expect(id).toBeNull()
+            indexedDBService.processUrl('typeB/stringID/typeC').then ([tableName, query, id]) ->
+                expect(tableName).toBe('typeC')
+                expect(query).toEqual({idB: 'stringID'})
+                expect(id).toBeNull()
+
+            $rootScope.$apply()
 
         it 'should trow and error if there is no match for a certain url', ->
             fn = -> indexedDBService.processUrl('typeA/11/typeB/12')
             expect(fn).toThrowError()
+
+    describe 'parse(object)', ->
+
+        it 'should parse fields from JSON', ->
+            test =
+                a: 1
+                b: 'asd3'
+                c: angular.toJson(['a', 1, 2])
+                d: angular.toJson({asd: [], bsd: {}})
+
+            copy = angular.copy(test)
+            copy.c = angular.toJson(copy.c)
+            copy.d = angular.toJson(copy.d)
+
+            parsed = indexedDBService.parse(test)
+
+            expect(parsed).toEqual(test)
 
     describe 'processSpecification(specification)', ->
 
@@ -299,15 +322,15 @@ describe 'IndexedDB service', ->
                 test1:
                     id: 'id1'
                     fields: [
-                        'id1'
-                        'field1'
-                        'field2'
+                        'id1:number'
+                        'field1:string'
+                        'field2:timestamp'
                     ]
                 test2:
                     id: null
                     fields: [
-                        'fieldA'
-                        'fieldB'
+                        'fieldA:number'
+                        'fieldB:string'
                     ]
 
             result = indexedDBService.processSpecification(specification)

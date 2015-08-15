@@ -29,17 +29,19 @@ class Wrapper extends Factory
                 specification = SPECIFICATION[root]
                 match = specification.paths.filter (p) ->
                     replaced = p
-                        .replace ///\w+\:\w+///g, '\\*'
+                        .replace ///\w+\:\w+///g, '(\\*|\\w+|\\d+)'
                     ///^#{replaced}$///.test(pathString)
                 .pop()
                 if not match?
                     parameter = @getId()
-
-                # second last element
-                for e in match.split('/') by -1
-                    if e.indexOf(':') > -1
-                        [fieldType, fieldName] = e.split(':')
-                        parameter = @[fieldName]
+                    $log.debug specification.paths, pathString
+                else
+                    # second last element
+                    for e in match.split('/') by -1
+                        if e.indexOf(':') > -1
+                            [fieldType, fieldName] = e.split(':')
+                            parameter = @[fieldName]
+                            break
 
                 dataService.get(@getEndpoint(), parameter, args...)
 
