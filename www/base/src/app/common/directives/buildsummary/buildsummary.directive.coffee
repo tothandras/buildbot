@@ -10,7 +10,7 @@ class Buildsummary extends Directive('common')
         }
 
 class _buildsummary extends Controller('common')
-    constructor: ($scope, buildbotService, resultsService, $urlMatcherFactory, $location) ->
+    constructor: ($scope, dataService, resultsService, $urlMatcherFactory, $location) ->
         baseurl = $location.absUrl().split("#")[0]
         buildrequestURLMatcher = $urlMatcherFactory.compile(
             "#{baseurl}#buildrequests/{buildrequestid:[0-9]+}")
@@ -51,18 +51,20 @@ class _buildsummary extends Controller('common')
             return buildURLMatcher.exec(url) != null
 
 
+        opened = dataService.open($scope)
         $scope.$watch 'buildid', (buildid) ->
             $scope.buldid = buildid
 
-            buildbotService.one('builds', $scope.buildid)
-            .bind($scope).then (build) ->
-                buildbotService.one('builders', build.builderid).bind($scope)
-                build.all('steps').bind $scope,
-                    onchild: (step) ->
+            opened.getBuilds($scope.buildid).then (builds) ->
+                $scope.build = build = builds[0]
+                opened.getBuilders(build.builderid).then (builders) ->
+                    $scope.builder = builder = builders[0]
+
+                build.getSteps().then (steps) ->
+                    $scope.steps = steps
+                    steps.forEach (step) ->
                         $scope.$watch (-> step.complete), ->
                             step.fulldisplay = step.complete == 0 || step.results > 0
                             if step.complete
                                 step.duration = step.complete_at - step.started_at
-                        logs = buildbotService.one("steps", step.stepid).all("logs")
-                        logs.bind $scope,
-                            dest: step
+                        step.loadLogs()

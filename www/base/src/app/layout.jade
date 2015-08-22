@@ -14,17 +14,11 @@ html.no-js(xmlns:ng='http://angularjs.org', xmlns:app='ignored')
         block footer
 
     script(src="scripts.js?_#{(new Date()).getTime()}")
-    | {% for app in config.plugins -%}
+    | {% for app in config.plugins %}
     script(src="{{app}}/scripts.js")
     link(rel='stylesheet', href='{{app}}/styles.css')
     script
-        | angular.module('app').requires.push('{{app}}')
-    | {%- endfor -%}
+      | angular.module('app').requires.push('{{app}}')
+    | {% endfor %}
     script
-        | angular.module("app").constant("config", {{configjson|safe}})
-    script
-        | angular.module("app").run(function($templateCache){
-        | {% for name, html in custom_templates.items() -%}
-        |     $templateCache.put("{{name}}", {{html|safe}})
-        | {%- endfor -%}
-        | })
+      | angular.module("app").constant("config", {{configjson|safe}})

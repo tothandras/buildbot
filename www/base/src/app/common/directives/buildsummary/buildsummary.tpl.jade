@@ -26,7 +26,7 @@
       div.anim-stepdetails(ng-show="step.fulldisplay")
         ul
           li(ng-repeat="log in step.logs")
-            a(ng-href="api/v2/logs/{{log.id}}/raw")
+            a(ng-href="api/v2/logs/{{log.logid}}/raw")
                 i.fa.fa-download
             | &nbsp;
             a(ui-sref="log({builder:builder.builderid, build:build.number, step: step.number, log:log.slug})")

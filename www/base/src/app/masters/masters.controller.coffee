@@ -1,3 +1,4 @@
 class Masters extends Controller
-    constructor: ($scope, buildbotService) ->
-        buildbotService.all('masters').bind($scope)
+    constructor: ($scope, dataService, notFunctionsFilter) ->
+        dataService.getMasters().then (masters) ->
+            $scope.masters = masters.map (master) -> notFunctionsFilter(master)

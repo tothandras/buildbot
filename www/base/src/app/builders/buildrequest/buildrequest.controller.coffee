@@ -1,14 +1,17 @@
 class Buildrequest extends Controller
-    constructor: ($scope, buildbotService, $stateParams, findBuilds, glBreadcrumbService) ->
+    constructor: ($scope, dataService, $stateParams, findBuilds, glBreadcrumbService, notFunctionsFilter) ->
         $scope.$watch "buildrequest.claimed", (n, o) ->
             if n  # if it is unclaimed, then claimed, we need to try again
                 findBuilds $scope,
                     $scope.buildrequest.buildrequestid,
                     $stateParams.redirect_to_build
 
-        buildbotService.bindHierarchy($scope, $stateParams, ['buildrequests'])
-        .then ([buildrequest]) ->
-            buildbotService.one("builders", buildrequest.builderid).bind($scope).then (builder) ->
+        opened = dataService.open($scope)
+        opened.getBuildrequests($stateParams.buildrequest).then (buildrequests) ->
+            buildrequest = buildrequests[0]
+            $scope.buildrequest = notFunctionsFilter(buildrequest)
+            opened.getBuilders(buildrequest.builderid).then (builders) ->
+                $scope.builder = builder = builders[0]
                 breadcrumb = [
                         caption: "buildrequests"
                         sref: "buildrequests"
@@ -21,4 +24,6 @@ class Buildrequest extends Controller
                 ]
 
                 glBreadcrumbService.setBreadcrumb(breadcrumb)
-            buildbotService.one("buildsets", buildrequest.buildsetid).bind($scope)
+
+            opened.getBuildsets(buildrequest.buildsetid).then (buildsets) ->
+                $scope.buildset = notFunctionsFilter(buildsets[0])

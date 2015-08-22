@@ -1,6 +1,7 @@
 class Build extends Controller
-    constructor: ($rootScope, $scope, $location, buildbotService, $stateParams, recentStorage, glBreadcrumbService, glTopbarContextualActionsService,
-                $state) ->
+    constructor: ($rootScope, $scope, $location, $stateParams, $state,
+                  dataService, dataUtilsService, recentStorage, notFunctionsFilter,
+                  glBreadcrumbService, glTopbarContextualActionsService) ->
 
         builderid = _.parseInt($stateParams.builder)
         buildnumber = _.parseInt($stateParams.build)
@@ -18,7 +19,7 @@ class Build extends Controller
                         extra_class: "btn-danger"
                         action: ->
                             $scope.is_stopping = true
-                            buildbotService.one("builds", $scope.build.buildid).control("stop").then (->), (why) ->
+                            dataService.control("builds/#{$scope.build.buildid}", 'stop').then (->), (why) ->
                                 $scope.is_stopping = false
                                 $scope.error = "Cannot stop: " + why.data.error.message
                                 glTopbarContextualActionsService.setContextualActions []
@@ -31,42 +32,55 @@ class Build extends Controller
                         icon: "spinner fa-spin"
                 ]
 
-        buildbotService.bindHierarchy($scope, $stateParams, ['builders', 'builds'])
-        .then ([builder, build]) ->
-            if not build.number? and buildnumber > 1
-                $state.go('build', builder:builderid, build:buildnumber - 1)
-            breadcrumb = [
-                    caption: "Builders"
-                    sref: "builders"
-                ,
-                    caption: builder.name
-                    sref: "builder({builder:#{builderid}})"
-                ,
-                    caption: build.number
-                    sref: "build({build:#{buildnumber}})"
-            ]
+        opened = dataService.open($scope)
+        opened.getBuilders(builderid).then (builders) ->
+            $scope.builder = builder = builders[0]
+            builder.getBuilds(number: buildnumber).then (builds) ->
+                $scope.build = build = builds[0]
+                if not build.number? and buildnumber > 1
+                    $state.go('build', builder:builderid, build:buildnumber - 1)
+                breadcrumb = [
+                        caption: "Builders"
+                        sref: "builders"
+                    ,
+                        caption: builder.name
+                        sref: "builder({builder:#{builderid}})"
+                    ,
+                        caption: build.number
+                        sref: "build({build:#{buildnumber}})"
+                ]
 
-            glBreadcrumbService.setBreadcrumb(breadcrumb)
+                glBreadcrumbService.setBreadcrumb(breadcrumb)
 
-            unwatch = $scope.$watch 'nextbuild.number', (n, o) ->
-                if n?
-                    $scope.last_build = false
-                    unwatch()
+                unwatch = $scope.$watch 'nextbuild.number', (n, o) ->
+                    if n?
+                        $scope.last_build = false
+                        unwatch()
 
-            buildbotService.one('builders', builderid).one('builds', buildnumber + 1).bind($scope, dest_key:"nextbuild")
-            buildbotService.one('builds', build.id).all('changes').bind($scope)
-            $scope.$watch "changes", (changes) ->
-                if changes?
-                    responsibles = {}
-                    for change in changes
-                        responsibles[change.author] = change.author_email
-                    $scope.responsibles = responsibles
-            , true
-            buildbotService.one("buildslaves", build.buildslaveid).bind($scope)
-            buildbotService.one("builds", build.id).all("properties").bind($scope)
-            buildbotService.one("buildrequests", build.buildrequestid)
-            .bind($scope).then (buildrequest) ->
-                buildbotService.one("buildsets", buildrequest.buildsetid).bind($scope)
                 recentStorage.addBuild
                     link: "#/builders/#{$scope.builder.builderid}/builds/#{$scope.build.number}"
                     caption: "#{$scope.builder.name} / #{$scope.build.number}"
+
+                opened.getBuilds(build.buildid).then (builds) ->
+                    build = builds[0]
+                    $scope.properties = build.getProperties().getArray()
+                    $scope.changes = build.getChanges().getArray()
+                    $scope.$watch 'changes', (changes) ->
+                        if changes?
+                            responsibles = {}
+                            for change in changes
+                                change.author_email = dataUtilsService.emailInString(change.author)
+                                responsibles[change.author] = change.author_email
+                            $scope.responsibles = responsibles
+                    , true
+
+                opened.getBuildslaves(build.buildslaveid).then (buildslaves) ->
+                    $scope.buildslave = notFunctionsFilter(buildslaves[0])
+
+                opened.getBuildrequests(build.buildrequestid).then (buildrequests) ->
+                    $scope.buildrequest = buildrequest = buildrequests[0]
+                    opened.getBuildsets(buildrequest.buildsetid).then (buildsets) ->
+                        $scope.buildset = buildsets[0]
+
+            builder.getBuilds(number: buildnumber + 1).then (builds) ->
+                $scope.nextbuild = builds[0]
